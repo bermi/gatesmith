@@ -1,6 +1,6 @@
 # Project state
 
-> Derived from `.pm/gates.yaml` — re-projected by the PM at the end of every
+> Derived from `.gatesmith/gates.yaml` — re-projected by the PM at the end of every
 > tick. Do not edit by hand; edit `gates.yaml` instead.
 
 Active phase: **0**

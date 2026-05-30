@@ -23,19 +23,19 @@
       "Bash(grep :*)",
       "Bash(tail :*)",
       "Bash(head :*)",
-      "Bash(cat .pm/:*)",
-      "Bash(ls .pm/:*)",
-      "Bash(mkdir -p .pm/:*)",
-      "Bash(touch .pm/:*)",
-      "Bash(cp .pm/:*)",
-      "Bash(mv .pm/:*)",
-      "Bash(rm .pm/evidence/:*)",
-      "Bash(rm .pm/handoff/:*)",
+      "Bash(cat .gatesmith/:*)",
+      "Bash(ls .gatesmith/:*)",
+      "Bash(mkdir -p .gatesmith/:*)",
+      "Bash(touch .gatesmith/:*)",
+      "Bash(cp .gatesmith/:*)",
+      "Bash(mv .gatesmith/:*)",
+      "Bash(rm .gatesmith/evidence/:*)",
+      "Bash(rm .gatesmith/handoff/:*)",
       "Bash(date:*)",
       "Bash(echo :*)",
 
-      "Edit(.pm/**)",
-      "Write(.pm/**)"
+      "Edit(.gatesmith/**)",
+      "Write(.gatesmith/**)"
     ],
     "deny": [
       "Bash(git push --force:*)",
@@ -47,5 +47,5 @@
       "Bash(sudo rm:*)"
     ]
   },
-  "_note": "PM + teammate allowlist. The lane-fence is enforced ONLY at PM tick step 5 (git diff --stat); harness-level Edit/Write denies are intentionally NOT used to confine teammates to their lanes, because spawned teammates inherit this same settings file and the denies would block them from editing their own lane. The PM is disciplined by its prompt to write only under .pm/; the git-diff check after each tick is the safety net. ADD your project's build/test/run commands (e.g. `Bash(npm test:*)`, `Bash(cargo build:*)`) to the allow list so unattended ticks don't stall on permission prompts."
+  "_note": "PM + teammate allowlist. The lane-fence is enforced ONLY at PM tick step 5 (git diff --stat); harness-level Edit/Write denies are intentionally NOT used to confine teammates to their lanes, because spawned teammates inherit this same settings file and the denies would block them from editing their own lane. The PM is disciplined by its prompt to write only under .gatesmith/; the git-diff check after each tick is the safety net. ADD your project's build/test/run commands (e.g. `Bash(npm test:*)`, `Bash(cargo build:*)`) to the allow list so unattended ticks don't stall on permission prompts."
 }

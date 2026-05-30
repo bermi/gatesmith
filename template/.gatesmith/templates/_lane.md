@@ -1,7 +1,7 @@
 # {{LANE}} teammate template
 
 <!--
-  COPY this file to .pm/templates/<lane>.md (e.g. core.md, ui.md) once per lane.
+  COPY this file to .gatesmith/templates/<lane>.md (e.g. core.md, ui.md) once per lane.
   Replace {{LANE}} with the lane's directory name, and add a lane-specific
   "Style discipline" section describing the conventions, tools, and constraints
   that work in this lane must follow. The PM fills the {{gate_*}} / {{utc_iso}} /
@@ -45,7 +45,7 @@ works, (c) which gate forced the need. The PM will escalate to the human. Do
 
 ## Your task this spawn
 
-1. Read `.pm/state.md` and the last 5 entries of `.pm/journal.md` for context.
+1. Read `.gatesmith/state.md` and the last 5 entries of `.gatesmith/journal.md` for context.
 2. Read the relevant section of the project plan for any part of `{{LANE}}/` you haven't seen yet.
 3. Implement the **minimum change** in `{{LANE}}/` to make the gate pass.
 4. Add or extend tests for what you changed.

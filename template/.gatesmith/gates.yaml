@@ -9,7 +9,7 @@ schema_version: 1
 # Gate fields:
 #   id               unique, kebab-case
 #   phase            integer; lower phases run first
-#   owner_agent      the lane that owns it; maps to .pm/templates/<owner_agent>.md
+#   owner_agent      the lane that owns it; maps to .gatesmith/templates/<owner_agent>.md
 #   depends_on       list of gate ids that must be `passed` before this is pickable
 #   status           pending | failed | passed   (PM mutates this)
 #   failure_count    integer; >=3 escalates to the human

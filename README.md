@@ -5,7 +5,7 @@
 > per tick, re-runs the gate's verification, commits on pass, and loops until
 > every gate passes.
 
-You describe the work as a **ledger of quality gates** in `.pm/gates.yaml`. The
+You describe the work as a **ledger of quality gates** in `.gatesmith/gates.yaml`. The
 PM agent picks the next unblocked gate, spawns the one teammate that owns it,
 re-runs the gate's verification command, enforces a lane fence, commits on pass,
 and journals the verdict. A ralph loop fires the PM tick repeatedly until every
@@ -29,7 +29,7 @@ cd ~/your-project
 ~/code/gatesmith/install.sh
 ```
 
-This copies `.pm/` and `.claude/` into your project. Then open the project in
+This copies `.gatesmith/` and `.claude/` into your project. Then open the project in
 Claude Code and paste [`SETUP_PROMPT.md`](SETUP_PROMPT.md) (filled in) to
 generate your gate ledger and lane templates.
 
@@ -40,17 +40,17 @@ generate your gate ledger and lane templates.
 /ralph-loop:cancel-ralph              # stop (human owns end-of-project)
 ```
 
-Each tick is one `/gatesmith` invocation. Watch progress in `.pm/journal.md` and
-`.pm/state.md`.
+Each tick is one `/gatesmith` invocation. Watch progress in `.gatesmith/journal.md` and
+`.gatesmith/state.md`.
 
 ## How a tick works
 
-Every `/gatesmith` tick runs this contract (full text in `.pm/PM_PROMPT.md`):
+Every `/gatesmith` tick runs this contract (full text in `.gatesmith/PM_PROMPT.md`):
 
 1. **READ STATE** — load `gates.yaml`, `state.md`, recent `journal.md`, git status; re-verify any frozen-interface SHA locks.
 2. **PICK NEXT GATE** — `pending|failed` gates whose deps are all `passed`, sorted by (phase asc, failure_count desc, id asc). Head wins.
 3. **CHECK ESCALATION** — `failure_count >= 3`, `human_checkpoint: true`, or a frozen-interface change proposal → ask the human via `AskUserQuestion` and exit.
-4. **SPAWN TEAMMATE** — exactly one, from `.pm/templates/<owner_agent>.md`, with the gate's fields substituted in.
+4. **SPAWN TEAMMATE** — exactly one, from `.gatesmith/templates/<owner_agent>.md`, with the gate's fields substituted in.
 5. **VERIFY** — lane fence (`git diff --stat` — every changed path must be in the teammate's lane), re-run `verification_cmd`, apply `pass_criteria`, capture evidence.
 6. **RECORD** — append to `journal.md` first, then mutate `gates.yaml`, re-project `state.md`, and commit if the gate passed and the diff is in-lane.
 7. **EXIT** — print a tick summary and the next likely gate.
@@ -61,13 +61,13 @@ build from corrupting itself.
 
 ## The gate ledger
 
-`.pm/gates.yaml` is the single source of truth. Each gate:
+`.gatesmith/gates.yaml` is the single source of truth. Each gate:
 
 | field | meaning |
 |---|---|
 | `id` | unique kebab-case identifier |
 | `phase` | integer; lower phases run first |
-| `owner_agent` | the lane that owns it → `.pm/templates/<owner_agent>.md` |
+| `owner_agent` | the lane that owns it → `.gatesmith/templates/<owner_agent>.md` |
 | `depends_on` | gate ids that must be `passed` first |
 | `status` | `pending` \| `failed` \| `passed` (PM mutates) |
 | `failure_count` | retries; `>= 3` escalates to the human |
@@ -105,7 +105,7 @@ to inspect.
 
 ```
 template/                     # copied into your project by install.sh
-├── .pm/
+├── .gatesmith/
 │   ├── PM_PROMPT.md           # the authoritative PM contract (fill in {{LANES}} etc.)
 │   ├── gates.yaml             # the gate ledger (replace seed gates)
 │   ├── state.md               # derived snapshot (PM re-projects each tick)
@@ -118,7 +118,7 @@ template/                     # copied into your project by install.sh
     └── settings.json          # allowlist (add your build/test commands)
 
 SETUP_PROMPT.md                # one-shot kick-off prompt to generate your ledger
-install.sh                     # copies template/.pm + template/.claude into $PWD
+install.sh                     # copies template/.gatesmith + template/.claude into $PWD
 ```
 
 ## License

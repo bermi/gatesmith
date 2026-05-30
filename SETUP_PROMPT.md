@@ -23,11 +23,11 @@ session at the root of your project, and let it plan.
 >
 > Use the **Gatesmith** kit that's already installed in this repo:
 > - Fill in the `{{LANES}}`, `{{PLAN_DOC}}`, and `{{FROZEN}}` placeholders in
->   `.pm/PM_PROMPT.md` for this project.
-> - Replace the seed gates in `.pm/gates.yaml` with a real, phased,
+>   `.gatesmith/PM_PROMPT.md` for this project.
+> - Replace the seed gates in `.gatesmith/gates.yaml` with a real, phased,
 >   dependency-ordered ledger covering the whole build (bootstrap → prototype →
 >   hardening → ship). Mark human-judgment gates with `human_checkpoint: true`.
-> - For each lane, copy `.pm/templates/_lane.md` to `.pm/templates/<lane>.md` and
+> - For each lane, copy `.gatesmith/templates/_lane.md` to `.gatesmith/templates/<lane>.md` and
 >   write that lane's style discipline (idioms, allowed/banned APIs, testing,
 >   reuse expectations).
 > - Add this project's build/test/run commands to `.claude/settings.json` so
@@ -92,8 +92,8 @@ including which gates need a human to eyeball the result.
 
 ## After planning
 
-1. Review the generated `.pm/gates.yaml` — this *is* your project plan. If the
+1. Review the generated `.gatesmith/gates.yaml` — this *is* your project plan. If the
    gates are right, the build will be right.
-2. Make the bootstrap commit (just `.pm/`, `.claude/`, and your build-tool files).
-3. Run `/ralph-loop:ralph-loop /gatesmith` and watch `.pm/journal.md` fill in.
+2. Make the bootstrap commit (just `.gatesmith/`, `.claude/`, and your build-tool files).
+3. Run `/ralph-loop:ralph-loop /gatesmith` and watch `.gatesmith/journal.md` fill in.
 4. Stop any time with `/ralph-loop:cancel-ralph`; resume by running the loop again.
