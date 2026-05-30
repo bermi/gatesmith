@@ -42,6 +42,54 @@ session at the root of your project, and let it plan.
 
 ---
 
+## Examples
+
+You only write two blanks: the **goal** and the **constraints/context**.
+Everything else is fixed. The generated `gates.yaml` is only as good as those
+two blanks, so state three things concretely: the **lanes** (one directory per
+owner), any **frozen contract** between lanes, and what **"done"** means —
+including which gates need a human to eyeball the result.
+
+### A REST API + web dashboard
+
+> I'd like to build a self-hosted bookmark manager: a JSON REST API and a small
+> web dashboard to add, tag, and full-text-search bookmarks.
+>
+> Constraints: Go for the API, Postgres for storage, a Svelte single-page
+> frontend, local accounts only (no external auth provider). Lanes: `api/` (Go
+> service + migrations), `web/` (Svelte app), `e2e/` (Playwright tests). The
+> OpenAPI spec at `api/openapi.yaml` is the contract between `api/` and `web/` —
+> freeze it once phase 1 passes so the frontend builds against a stable schema.
+> Done: `go test ./...` green, the Playwright suite passes against a running
+> stack, and I can add/search/tag a bookmark in the browser (human checkpoint).
+
+### A single-binary CLI
+
+> I'd like to build `lh`, a CLI that tails and filters structured (JSON) log
+> streams with a query like `level>=warn and service=api`.
+>
+> Constraints: one statically-linked Rust binary, no runtime deps, reads from
+> stdin or a file. Lanes: `src/` (parser + filter engine + CLI), `tests/`
+> (integration fixtures), `man/` (man page + README usage). The grammar in
+> `src/grammar.pest` is the spec — freeze it after phase 1. Done: `cargo test`
+> green, `cargo build --release` produces a binary under 5 MB, and `lh --help`
+> plus three documented example queries run against `tests/fixtures/sample.log`.
+
+### An offline data pipeline
+
+> I'd like to build a pipeline that turns a folder of PDFs into a searchable
+> embedding index.
+>
+> Constraints: Python with uv, no cloud calls — a local embedding model only.
+> Lanes: `ingest/` (PDF → text chunking), `embed/` (model worker), `index/`
+> (vector store + query API), `qa/` (eval scripts). The chunk-record schema in
+> `index/schema.json` is frozen after phase 2 so `ingest/` and `index/` stay
+> compatible. Done: `uv run pytest` green, a benchmark in `qa/` reports
+> recall@10 ≥ 0.8 on the labeled query set in `qa/eval/`, and querying "refund
+> policy" returns the expected document (human checkpoint).
+
+---
+
 ## After planning
 
 1. Review the generated `.pm/gates.yaml` — this *is* your project plan. If the

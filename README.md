@@ -11,9 +11,6 @@ re-runs the gate's verification command, enforces a lane fence, commits on pass,
 and journals the verdict. A ralph loop fires the PM tick repeatedly until every
 gate passes.
 
-It is a project-agnostic extraction of a workflow first used on a multi-lane
-macOS project.
-
 ## Prerequisites
 
 - [Claude Code][cc]
