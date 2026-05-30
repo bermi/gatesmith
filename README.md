@@ -1,20 +1,18 @@
 # Gatesmith
 
-> A self-driving build loop for Claude Code. A project-manager agent forges
-> machine-checkable quality gates, spawns one lane-owner teammate per tick,
-> verifies their work against the gate's criteria, commits on pass, and loops
-> until the whole ledger rings green.
+> A Claude Code workflow that drives a build from a ledger of machine-checkable
+> quality gates. A PM agent picks the next gate, spawns one lane-owner teammate
+> per tick, re-runs the gate's verification, commits on pass, and loops until
+> every gate passes.
 
-Gatesmith turns a project plan into a **ledger of quality gates** and drives it
-to completion autonomously. You describe the gates; the PM agent does the
-orchestration — picking the next unblocked gate, spawning the one teammate who
-owns it, re-running the verification command itself, enforcing a lane fence,
-committing, and journaling every verdict. A ralph loop fires the PM
-tick over and over until every gate passes.
+You describe the work as a **ledger of quality gates** in `.pm/gates.yaml`. The
+PM agent picks the next unblocked gate, spawns the one teammate that owns it,
+re-runs the gate's verification command, enforces a lane fence, commits on pass,
+and journals the verdict. A ralph loop fires the PM tick repeatedly until every
+gate passes.
 
-It's the extracted, project-agnostic form of a workflow that shipped a real
-multi-lane macOS project (driver + native core + ML inference + Swift UI) almost
-entirely hands-off.
+It is a project-agnostic extraction of a workflow first used on a multi-lane
+macOS project.
 
 ## Prerequisites
 
@@ -61,8 +59,8 @@ Every `/gatesmith` tick runs this contract (full text in `.pm/PM_PROMPT.md`):
 7. **EXIT** — print a tick summary and the next likely gate.
 
 The PM **never writes production code** and **spawns at most one teammate per
-tick** — that single-writer rule plus the lane fence is what keeps an
-autonomous, parallel-feeling build from corrupting itself.
+tick**. That single-writer rule plus the lane fence is what keeps an unattended
+build from corrupting itself.
 
 ## The gate ledger
 

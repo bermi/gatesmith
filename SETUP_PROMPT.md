@@ -1,9 +1,8 @@
 # Gatesmith setup prompt
 
-This is the one-shot kick-off prompt that turns a fresh idea into a fully
-gate-driven, ralph-looped build. It's a generalized version of the prompt that
-originally produced this workflow. Fill in the angle-bracket blanks, paste it
-into a Claude Code session at the root of your project, and let it plan.
+A generalized version of the prompt that generates a project's gate ledger and
+lane templates. Fill in the angle-bracket blanks, paste it into a Claude Code
+session at the root of your project, and let it plan.
 
 ---
 
