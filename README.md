@@ -21,17 +21,20 @@ gate passes.
 
 ## Install into a project
 
-From the root of the repo you want to build:
+1. Copy the kit into the repo you want to build:
 
-```sh
-git clone https://github.com/bermi/gatesmith ~/code/gatesmith   # once
-cd ~/your-project
-~/code/gatesmith/install.sh
-```
+   ```sh
+   git clone https://github.com/bermi/gatesmith ~/code/gatesmith   # once
+   cd ~/your-project
+   ~/code/gatesmith/install.sh                                     # drops .gatesmith/ + .claude/
+   ```
 
-This copies `.gatesmith/` and `.claude/` into your project. Then open the project in
-Claude Code and paste [`SETUP_PROMPT.md`](SETUP_PROMPT.md) (filled in) to
-generate your gate ledger and lane templates.
+2. Generate your gate ledger and lane templates: open the project in Claude
+   Code and paste the filled-in kick-off prompt from
+   **[SETUP_PROMPT.md](SETUP_PROMPT.md)** — it has a template plus worked
+   examples for an API, a CLI, and a data pipeline.
+
+3. Run the loop (below).
 
 ## Run it
 
