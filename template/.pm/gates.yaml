@@ -1,0 +1,79 @@
+schema_version: 1
+
+# Gatesmith quality-gate ledger — the single source of truth for what work is
+# needed and how "done" is proven. The PM picks the next pending|failed gate
+# whose dependencies are all passed, spawns its owner_agent, re-runs
+# verification_cmd, and applies pass_criteria. Replace these seed gates with
+# your project's real ones.
+#
+# Gate fields:
+#   id               unique, kebab-case
+#   phase            integer; lower phases run first
+#   owner_agent      the lane that owns it; maps to .pm/templates/<owner_agent>.md
+#   depends_on       list of gate ids that must be `passed` before this is pickable
+#   status           pending | failed | passed   (PM mutates this)
+#   failure_count    integer; >=3 escalates to the human
+#   verification_cmd shell command the PM re-runs from the repo root
+#   pass_criteria    the DSL applied to the command's result (see below)
+#   human_checkpoint true → PM stops and asks the human before passing
+#   description       one-line human summary
+#
+# pass_criteria DSL (any one, or `and:` a list of them):
+#   exit_code: 0
+#   file_exists: path/to/file
+#   files_exist: [a, b, c]
+#   regex_match: "pattern"          # against stdout
+#   json_path: ".metrics.sdr_db"    # with op + value:
+#     op: ">="                      #   one of == != < <= > >=
+#     value: 20
+#   human_confirm: "question to ask the human"
+#   and: [ {exit_code: 0}, {file_exists: foo} ]
+
+gates:
+  - id: repo_skeleton
+    phase: 0
+    owner_agent: core
+    depends_on: []
+    status: pending
+    failure_count: 0
+    verification_cmd: "test -f foo.txt"
+    pass_criteria:
+      file_exists: foo.txt
+    human_checkpoint: false
+    description: "Create the initial lane skeleton (proven here by foo.txt existing)."
+
+  - id: hello_written
+    phase: 0
+    owner_agent: core
+    depends_on: [repo_skeleton]
+    status: pending
+    failure_count: 0
+    verification_cmd: "cat foo.txt"
+    pass_criteria:
+      regex_match: "hi"
+    human_checkpoint: false
+    description: "Write the expected contents into foo.txt (must contain 'hi')."
+
+  - id: tests_pass
+    phase: 1
+    owner_agent: qa
+    depends_on: [hello_written]
+    status: pending
+    failure_count: 0
+    verification_cmd: "echo 'replace with your real test command' && true"
+    pass_criteria:
+      exit_code: 0
+    human_checkpoint: false
+    description: "Project test suite is green."
+
+  - id: human_signoff
+    phase: 1
+    owner_agent: qa
+    depends_on: [tests_pass]
+    status: pending
+    failure_count: 0
+    verification_cmd: "echo 'present the artefact to the human'"
+    pass_criteria:
+      human_confirm: "Does the built artefact look/behave correctly?"
+    human_checkpoint: true
+    description: "Human eyeballs the result before the project is declared done."

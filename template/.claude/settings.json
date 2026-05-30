@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)",
+      "Bash(git push origin main)",
+      "Bash(git push origin main:main)",
+      "Bash(git fetch:*)",
+      "Bash(git pull --ff-only:*)",
+
+      "Bash(test :*)",
+      "Bash(shasum :*)",
+      "Bash(diff :*)",
+      "Bash(grep :*)",
+      "Bash(tail :*)",
+      "Bash(head :*)",
+      "Bash(cat .pm/:*)",
+      "Bash(ls .pm/:*)",
+      "Bash(mkdir -p .pm/:*)",
+      "Bash(touch .pm/:*)",
+      "Bash(cp .pm/:*)",
+      "Bash(mv .pm/:*)",
+      "Bash(rm .pm/evidence/:*)",
+      "Bash(rm .pm/handoff/:*)",
+      "Bash(date:*)",
+      "Bash(echo :*)",
+
+      "Edit(.pm/**)",
+      "Write(.pm/**)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push --force-with-lease:*)",
+      "Bash(git push --delete:*)",
+      "Bash(git push origin --delete:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(rm -rf:*)",
+      "Bash(sudo rm:*)"
+    ]
+  },
+  "_note": "PM + teammate allowlist. The lane-fence is enforced ONLY at PM tick step 5 (git diff --stat); harness-level Edit/Write denies are intentionally NOT used to confine teammates to their lanes, because spawned teammates inherit this same settings file and the denies would block them from editing their own lane. The PM is disciplined by its prompt to write only under .pm/; the git-diff check after each tick is the safety net. ADD your project's build/test/run commands (e.g. `Bash(npm test:*)`, `Bash(cargo build:*)`) to the allow list so unattended ticks don't stall on permission prompts."
+}
