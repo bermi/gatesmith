@@ -42,6 +42,13 @@ mkdir -p "$DEST/.claude/gatesmith"
 cp "$SRC/.claude/gatesmith/"*.sh "$DEST/.claude/gatesmith/"
 chmod +x "$DEST/.claude/gatesmith/"*.sh
 
+# Bundled skills (snapdir).
+mkdir -p "$DEST/.claude/skills/snapdir"
+cp "$SRC/.claude/skills/snapdir/SKILL.md" "$DEST/.claude/skills/snapdir/SKILL.md"
+
+# Snapdir-mode runtime scratch dir (gitignored).
+mkdir -p "$DEST/.gatesmith/work"
+
 # Settings: copy ours (with the Stop hook) or merge the hook into an existing file.
 HOOK_CMD="bash .claude/gatesmith/stop-hook.sh"
 if [[ -f "$DEST/.claude/settings.json" ]]; then
@@ -84,4 +91,8 @@ Next steps:
        /gatesmith:cancel <owner>      # stop a loop
 
   (Tip: paste the filled-in SETUP_PROMPT.md to have Claude generate steps 1-4.)
+
+  Optional — git-free "snapdir mode" (state synced via BLAKE3 snapshots instead of
+  git): needs the snapdir binary (cargo install snapdir-cli). Then add
+  --snapdir-store file:///abs/store to the loop/conduct command. See README.
 EOF

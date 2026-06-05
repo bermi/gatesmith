@@ -1,0 +1,63 @@
+schema_version: 1
+
+# Gatesmith e2e self-test ledger — the test SUBJECT, not the test runner.
+# Three owners (team-a, team-b, team-qa), an intra-team chain, a cross-owner
+# dependency, a human checkpoint (remote-control), and a gate meant to be superseded.
+# Every verification_cmd is a trivial file/grep check so ticks are instant.
+# See test/e2e/ for the harness that drives and asserts this project.
+
+gates:
+  # ---- team-a (lane: core) intra-team chain ----
+  - id: a_skeleton
+    phase: 0
+    owner_agent: core
+    owner: team-a
+    depends_on: []
+    status: pending
+    failure_count: 0
+    verification_cmd: "test -f core/skeleton.txt"
+    pass_criteria:
+      file_exists: core/skeleton.txt
+    human_checkpoint: false
+    description: "team-a creates core/skeleton.txt"
+
+  - id: a_api
+    phase: 1
+    owner_agent: core
+    owner: team-a
+    depends_on: [a_skeleton]
+    status: pending
+    failure_count: 0
+    verification_cmd: "grep -q 'API v1' core/api.txt"
+    pass_criteria:
+      regex_match: "API v1"
+    human_checkpoint: false
+    description: "team-a writes core/api.txt containing 'API v1' (may be SUPERSEDED to v2)"
+
+  # ---- team-b (lane: svc) with a CROSS-OWNER dep on team-a's a_api ----
+  - id: b_consumer
+    phase: 2
+    owner_agent: svc
+    owner: team-b
+    depends_on: [a_api]
+    status: pending
+    failure_count: 0
+    verification_cmd: "grep -q 'consumes API' svc/consumer.txt"
+    pass_criteria:
+      regex_match: "consumes API"
+    human_checkpoint: false
+    description: "team-b svc consumes team-a's API (cross-owner dependency on a_api)"
+
+  # ---- team-qa human-checkpoint gate (exercises remote-control) ----
+  - id: qa_signoff
+    phase: 3
+    owner_agent: qa
+    owner: team-qa
+    depends_on: [b_consumer]
+    status: pending
+    failure_count: 0
+    verification_cmd: "echo 'present the integrated build to the human'"
+    pass_criteria:
+      human_confirm: "Does the integrated build look correct?"
+    human_checkpoint: true
+    description: "team-qa human sign-off (remote-control: question/answer file)"

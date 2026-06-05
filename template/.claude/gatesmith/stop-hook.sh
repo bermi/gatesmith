@@ -65,6 +65,10 @@ fi
 # Not complete (this includes OWNER IDLE remote-wait) -> continue the loop.
 NEXT=$((ITERATION + 1))
 CMD="$(awk '/^---$/{i++; next} i>=2' "$STATE")"
+# --snapdir-id is a one-shot session-start bootstrap; never re-feed it (re-pulling each
+# iteration would wipe progress). setup-loop already keeps it out of the body; strip
+# defensively in case a state file was hand-edited.
+CMD="$(printf '%s' "$CMD" | sed -E 's/ --snapdir-id +[^ ]+//g')"
 if [[ -z "$CMD" ]]; then
   echo "gatesmith: no tick command in $STATE; stopping loop." >&2
   rm -f "$STATE" "$LOCK"; exit 0

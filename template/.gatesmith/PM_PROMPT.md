@@ -28,7 +28,8 @@ escalate to the human (via `AskUserQuestion`, or the file protocol under
 
 ## Runtime arguments
 
-A tick is invoked as `/gatesmith [<owner-scope>] [--owner ""] [--remote-control] [--tick-cmd ./path]`.
+A tick is invoked as `/gatesmith [<owner-scope>] [--owner ""] [--remote-control]
+[--tick-cmd ./path] [--snapdir-store <uri>] [--snapdir-id <id>] [--snapdir-exclude <regex>]`.
 Parse `$ARGUMENTS` first into runtime vars before doing anything else:
 
 - **OWNER_SCOPE** — the first bare token (not starting with `--`), OR the value of
@@ -39,9 +40,21 @@ Parse `$ARGUMENTS` first into runtime vars before doing anything else:
   NOT call `AskUserQuestion` anywhere; use the file protocol in "Remote-control
   mode" instead.
 - **TICK_CMD** — the path after `--tick-cmd`, if present (see "Tick hook").
+- **SNAPDIR_STORE** — the snapdir store URI. Precedence: the `--snapdir-store <uri>`
+  flag wins, else the `SNAPDIR_STORE` environment variable. If either resolves,
+  **snapdir mode is ON** and git is not used for state/sync. (snapdir itself ignores
+  the `SNAPDIR_STORE` env — you read it and pass it as snapdir's `--store`.) See
+  "Snapdir mode" below.
+- **SNAPDIR_ID** — `--snapdir-id <id>`: a canonical snapshot id to materialize at
+  session start (optional, even in snapdir mode).
+- **SNAPDIR_EXCLUDE** — `--snapdir-exclude <regex>`: override for what your canonical
+  pushes exclude. Default (when unset) excludes only the ephemeral coordination dirs
+  `^\./\.gatesmith/(locks|loops|questions|answers|work)/`. Pass `''` to snapshot
+  everything.
 
-If any flag is malformed (e.g. `--tick-cmd /abs/path`), print one error line and
-exit **without touching the ledger**. A bad invocation must never mutate state.
+If any flag is malformed (e.g. `--tick-cmd /abs/path`, or a `file://` snapdir store
+that is not absolute), print one error line and exit **without touching the ledger**.
+A bad invocation must never mutate state.
 
 ## Owner scope (multi-team ledgers)
 
@@ -67,6 +80,54 @@ Each gate may carry an optional `owner` (team/branch), distinct from `owner_agen
 > cross-machine git divergence and drives unowned/shared gates. A scoped tick
 > assumes the working tree's `gates.yaml` is authoritative for THIS machine and
 > does not attempt a cross-machine merge.
+
+## Snapdir mode (git-free state & sync)
+
+When SNAPDIR_STORE resolves (flag or env), Gatesmith uses **snapdir** — a BLAKE3
+content-addressed directory-snapshot tool — instead of git for state and sync. The
+working data is materialised by pulling a snapshot id; after each passing change you
+push a new snapshot and record its id (`snapdir_id`) on the gate instead of a
+`git_sha`. Call the binary as `${SNAPDIR_BIN:-snapdir}`.
+
+Build the snapdir argument set once and reuse it:
+
+```
+SNAPDIR="${SNAPDIR_BIN:-snapdir}"
+SNAPDIR_ARGS=(--store "$SNAPDIR_STORE")
+[ -n "$SNAPDIR_CACHE_DIR" ] && SNAPDIR_ARGS+=(--cache-dir "$SNAPDIR_CACHE_DIR")
+[ -n "$SNAPDIR_CATALOG" ]   && SNAPDIR_ARGS+=(--catalog "$SNAPDIR_CATALOG")
+EXC="${SNAPDIR_EXCLUDE-^\./\.gatesmith/(locks|loops|questions|answers|work)/}"
+[ -n "$EXC" ] && SNAPDIR_ARGS+=(--exclude "$EXC")
+```
+
+`snapdir id` / `snapdir manifest` are local-only and take no `--store` — use a subset
+without `--store`. The default exclude keeps the ephemeral coordination dirs out of
+canonical snapshots so ids stay deterministic and the lane fence stays clean.
+
+### Session-start bootstrap (run once, before the first tick of a session)
+
+If snapdir mode is ON:
+1. **Resolve the binary.** If `command -v "${SNAPDIR_BIN:-snapdir}"` fails, STOP the
+   whole session — do **not** silently fall back to git — and print:
+   ```
+   snapdir mode needs the snapdir binary. Install it:
+       cargo install snapdir-cli      (then: snapdir -h)
+   or set SNAPDIR_BIN=/abs/path/to/snapdir, and re-run.
+   ```
+2. **Probe push.** Run `${SNAPDIR_BIN:-snapdir} push --help`. If it shows no real
+   `--store` option (some published builds stub push/pull), warn:
+   `snapdir push looks stubbed — checkpoint/sync may not work; verify your build`.
+3. **Validate the store.** A `file://` store path must be absolute
+   (`file:///abs/...`); reject a relative one.
+4. **Materialise state if `--snapdir-id` was given:**
+   `${SNAPDIR_BIN:-snapdir} pull . "${SNAPDIR_ARGS[@]}" --id "$SNAPDIR_ID"`. Pulling
+   over a populated cwd needs `--force` — only add `--force` when the cwd is empty or
+   only the `.gatesmith/` scaffold, OR the human passed `--snapdir-force-pull`;
+   otherwise STOP and escalate rather than clobber local edits. Journal
+   `note=snapdir-bootstrap id=<id>`.
+
+In snapdir mode the git substeps of the tick contract are replaced as noted in each
+step's **(snapdir mode)** paragraph. Completion sentinels are unchanged.
 
 ## Tick hook (only when TICK_CMD is set via `--tick-cmd ./path`)
 
@@ -112,6 +173,9 @@ to evidence, journal `note=tickhook phase=pre rc=<n>`. Non-zero → journal
 - Run:
   - `git status --short`
   - `git log --oneline -10`
+  - **(snapdir mode)** Skip the two git commands. Instead capture the current
+    working-tree snapshot id for the summary/forensics: `CUR_ID=$(${SNAPDIR_BIN:-snapdir} id .)`
+    (local-only; no `--store`). Report it as `snapdir-cur=<id>`. Do not push here.
 - **Poll open questions (always, regardless of REMOTE_CONTROL):** for every gate
   with a non-empty `pending_question`, drain it per "Remote-control mode →
   Polling". This keeps questions written in remote mode drainable even on a tick
@@ -169,6 +233,8 @@ instead (never call `AskUserQuestion`):
 - Look up `gate.owner_agent`.
 - Read the matching template `.gatesmith/templates/<agent>.md`.
 - Substitute `{{gate_id}}`, `{{phase}}`, `{{gate_description}}`, `{{verification_cmd}}`, `{{pass_criteria}}`, `{{utc_iso}}`, `{{handoff_path}}`.
+- **(snapdir mode)** Immediately before spawning, capture the lane-fence baseline:
+  `BASE_MANIFEST=$(${SNAPDIR_BIN:-snapdir} manifest .)`.
 - Spawn **exactly one** teammate via the `Agent` tool with `subagent_type=general-purpose` and the filled prompt.
 - Wait for completion. Do not spawn a second.
 
@@ -178,6 +244,21 @@ instead (never call `AskUserQuestion`):
 - **Lane fence:** run `git diff --stat HEAD` (and `--cached`). Every changed path must start with the teammate's lane prefix (one of `{{LANES}}`) or `.gatesmith/evidence/` or `.gatesmith/handoff/`. Out-of-lane diff → reject:
   - Mark gate `failed`, increment `failure_count`, journal `out-of-lane: <paths>`.
   - **Do not commit.** Leave the diff for the human to inspect; print the offending paths in the tick summary.
+- **(snapdir mode) Lane fence = manifest-diff** (git is unavailable). Capture the
+  post-spawn manifest and diff it against `BASE_MANIFEST` from step 4 to get the
+  changed **files**:
+  ```
+  POST_MANIFEST=$(${SNAPDIR_BIN:-snapdir} manifest .)
+  CHANGED=$(diff <(printf '%s\n' "$BASE_MANIFEST") <(printf '%s\n' "$POST_MANIFEST") \
+    | grep -E '^[<>] F ' \
+    | sed -E 's#^[<>] F [0-7]+ [0-9a-f]+ [0-9]+ (\./.*)$#\1#' | sort -u)
+  ```
+  (`grep '^[<>] F '` keeps only changed files; bubbled-up `D` ancestor-dir lines are
+  ignored.) Every path in `CHANGED` must be in-lane or under `.gatesmith/evidence/`
+  or `.gatesmith/handoff/`. Paths under `.gatesmith/{locks,loops,questions,answers,work}/`
+  are fence-exempt (their heartbeats/state churn mid-tick). Out-of-lane → same as git
+  mode: mark `failed`, `failure_count++`, journal `out-of-lane: <paths>`, do NOT push,
+  surface the paths.
 - **Re-run verification:** execute `gate.verification_cmd` from the repo root. Capture stdout+stderr to `.gatesmith/evidence/<gate-id>-<utc-iso>.log`.
 - **Apply pass criteria** using the criteria DSL: `exit_code`, `file_exists`, `files_exist`, `regex_match`, `json_path`+`op`+`value`, `and:`, `human_confirm:`.
 - If a gate declares an optional `verify_hook` (a command emitting JSON), run it and apply the gate's criteria to its output.
@@ -191,18 +272,21 @@ instead (never call `AskUserQuestion`):
 ### 6. RECORD
 
 - **Always write evidence and journal BEFORE mutating `gates.yaml`** so a crashed tick leaves forensics.
-- Append to `.gatesmith/journal.md`:
+- Append to `.gatesmith/journal.md` (the provenance token is `git=<sha>` in git mode,
+  `snapdir=<id>` in snapdir mode):
   ```
-  <UTC-ISO> gate=<id> owner=<agent> scope=<owner-scope> verdict=<pass|fail|out-of-lane> git=<sha> evidence=<paths> note=<one-line>
+  <UTC-ISO> gate=<id> owner=<agent> scope=<owner-scope> verdict=<pass|fail|out-of-lane> {git=<sha>|snapdir=<id>} evidence=<paths> note=<one-line>
   ```
 - **Acquire the ledger write-lock before touching `gates.yaml`.** It is a single
   shared file; two scoped ticks must not write it at once.
   1. `mkdir -p .gatesmith/locks`. Acquire atomically: `mkdir
      .gatesmith/locks/ledger.lock` succeeds for exactly one racer. Write a `holder`
-     file inside it with `<utc-iso> pid=$$ scope=<scope> ttl=60`.
+     file inside it with `<utc-iso> pid=$$ scope=<scope> ttl=60` (this timestamp is
+     what the stale check below reads).
   2. If acquisition fails, read the holder's utc-iso. If older than its TTL (60s)
-     it is **stale** → journal `note=stale-lock age=<s>`, `rmdir`/remove it, retry
-     once. If still freshly held → do **not** write: journal `note=ledger-contended`,
+     it is **stale** → journal `note=stale-lock age=<s>`, remove it
+     (`rm -f .gatesmith/locks/ledger.lock/holder && rmdir .gatesmith/locks/ledger.lock`),
+     retry once. If still freshly held → do **not** write: journal `note=ledger-contended`,
      exit this tick cleanly (the gate stays pending; the next tick retries). Bounded
      retry (~50 × 100ms) before giving up.
   3. **Read-modify-write under the lock (the loudest rule).** RE-READ `gates.yaml`
@@ -220,8 +304,22 @@ instead (never call `AskUserQuestion`):
   git add -A && git commit -m "<phase>:<gate-id> via <agent>"
   ```
   so the next tick can `git diff HEAD~1`.
-- Release the lock (`rmdir .gatesmith/locks/ledger.lock`) on EVERY path, including
-  failures.
+- Release the lock on EVERY path, including failures: remove the holder file then the
+  dir — `rm -f .gatesmith/locks/ledger.lock/holder && rmdir .gatesmith/locks/ledger.lock`
+  (a bare `rmdir` fails because the dir still holds `holder`; `rm -rf` is denied).
+- **(snapdir mode) Snapshot instead of commit — two phases** (a snapshot can never
+  contain its own final id, so recording the id is a follow-up write):
+  - *Phase 1 (under the lock, as above):* on pass set `status: passed`, `passed_at`,
+    and `snapdir_id: pending` (no `git_sha`, no `git commit`). On fail, no snapshot.
+    Re-project `state.md`, release the lock.
+  - *Phase 2 (after releasing the lock, pass only):*
+    `NEW_ID=$(${SNAPDIR_BIN:-snapdir} push . "${SNAPDIR_ARGS[@]}")`. Then re-acquire
+    the ledger lock briefly and do a second tiny read-modify-write setting
+    `snapdir_id: <NEW_ID>` on this gate (replacing `pending`); re-project `state.md`;
+    release. Append a journal line `<utc> gate=<id> snapdir=<NEW_ID> note=pushed`.
+  - The recorded id is the snapshot taken just before the id was written; that's fine
+    because **PICK and dependency resolution rely on `status`, never `snapdir_id`.**
+  - The journal verdict line carries `snapdir=<id>` where git mode carries `git=<sha>`.
 - If a `post-commit` hook auto-pushes, you do **not** need to `git push` manually. If you notice repeated push failures, escalate to the human — do not try to fix sync yourself.
 
 ### 7. EXIT
@@ -384,6 +482,7 @@ Result: <pass | fail: criterion-x failed | awaiting-answer uuid=<...>>
 Journaled: <UTC-ISO> gate=<id> scope=<s> verdict=<v> ...
 State updated: state.md re-projected.
 Committed: <sha> (or "no commit — out-of-lane" / "no commit — awaiting answer")
+          (snapdir mode: "Recorded: snapdir=<id>" instead of "Committed: <sha>")
 
 Next likely gate: <id>  (phase <n>, owner <agent>)
 === exit ===

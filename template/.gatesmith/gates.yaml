@@ -26,7 +26,11 @@ schema_version: 1
 #
 # PM-mutated fields (you author the above; the PM appends these as it runs):
 #   passed_at        UTC-ISO when the gate passed
-#   git_sha          commit SHA captured when the gate passed
+#   git_sha          commit SHA captured when the gate passed (git mode)
+#   snapdir_id       snapdir snapshot id captured when the gate passed (snapdir mode;
+#                    replaces git_sha). The id is the snapshot taken just before the id
+#                    was written back, so a gate's `status` — not its snapdir_id — is the
+#                    authoritative pass marker for dependency resolution.
 #   failure_reason   reasons appended on each fail
 #   superseded_at    UTC-ISO when a human replaced this gate (status=superseded)
 #   superseded_by    id of the replacement gate

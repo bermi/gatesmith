@@ -37,6 +37,7 @@
       "Bash(mkdir -p .gatesmith/:*)",
       "Bash(mkdir .gatesmith/locks/ledger.lock:*)",
       "Bash(rmdir .gatesmith/locks/:*)",
+      "Bash(rm .gatesmith/locks/:*)",
       "Bash(touch .gatesmith/:*)",
       "Bash(cp .gatesmith/:*)",
       "Bash(mv .gatesmith/:*)",
@@ -47,6 +48,17 @@
       "Bash(date:*)",
       "Bash(echo :*)",
       "Bash(uuidgen:*)",
+
+      "Bash(mkdir -p .gatesmith/work:*)",
+      "Bash(snapdir:*)",
+      "Bash(snapdir id:*)",
+      "Bash(snapdir manifest:*)",
+      "Bash(snapdir push:*)",
+      "Bash(snapdir pull:*)",
+      "Bash(snapdir verify:*)",
+      "Bash(snapdir stage:*)",
+      "Bash(snapdir revisions:*)",
+      "Bash(snapdir ancestors:*)",
 
       "Bash(.claude/gatesmith/setup-loop.sh:*)",
       "Bash(.claude/gatesmith/cancel-loop.sh:*)",
@@ -64,5 +76,5 @@
       "Bash(sudo rm:*)"
     ]
   },
-  "_note": "PM + teammate allowlist. The Stop hook (.claude/gatesmith/stop-hook.sh) drives /gatesmith:loop; it re-feeds the owner tick until OWNER COMPLETE. The lane-fence is enforced ONLY at PM tick step 5 (git diff --stat); harness-level Edit/Write denies are intentionally NOT used to confine teammates to their lanes, because spawned teammates inherit this same settings file and the denies would block them from editing their own lane. ADD your project's build/test/run commands (e.g. `Bash(npm test:*)`, `Bash(cargo build:*)`) to the allow list so unattended ticks don't stall on permission prompts. If you use `--tick-cmd ./path`, ALSO allowlist that exact command (e.g. `Bash(./scripts/tick-hook.sh:*)`) or every tick stalls on a permission prompt."
+  "_note": "PM + teammate allowlist. The Stop hook (.claude/gatesmith/stop-hook.sh) drives /gatesmith:loop; it re-feeds the owner tick until OWNER COMPLETE. The lane-fence is enforced ONLY at PM tick step 5 (git diff --stat, or a `snapdir manifest` diff in snapdir mode); harness-level Edit/Write denies are intentionally NOT used to confine teammates to their lanes, because spawned teammates inherit this same settings file and the denies would block them from editing their own lane. ADD your project's build/test/run commands (e.g. `Bash(npm test:*)`, `Bash(cargo build:*)`) to the allow list so unattended ticks don't stall on permission prompts. If you use `--tick-cmd ./path`, ALSO allowlist that exact command (e.g. `Bash(./scripts/tick-hook.sh:*)`) or every tick stalls. SNAPDIR MODE: `Bash(snapdir:*)` matches snapdir on PATH (cargo install snapdir-cli); if you point SNAPDIR_BIN at an absolute path it will NOT match `Bash(snapdir:*)` — either install snapdir on PATH or add `Bash(/abs/path/to/snapdir:*)` to this allow list."
 }

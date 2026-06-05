@@ -47,6 +47,11 @@ session at the root of your project, and let it plan.
 > /gatesmith:loop <owner>         # one per owner (separate worktrees/machines)
 > /gatesmith:conduct              # or drive them all from one session
 > ```
+>
+> (Optional — git-free run: add `--snapdir-store file:///abs/store` to use snapdir
+> BLAKE3 snapshots instead of git. The PM then uses a `snapdir manifest` lane fence and
+> records `snapdir_id` instead of `git_sha`; the conductor is the sole snapshot pusher.
+> Requires `cargo install snapdir-cli`.)
 
 ---
 

@@ -50,6 +50,37 @@ remote answers, print `===== CONDUCTOR IDLE — remote-wait =====`, then do a bo
 wait and re-poll (respect `--max-rounds`); after several idle rounds with no
 progress, escalate to the human instead of spinning.
 
+## Snapdir mode (`--snapdir-store <uri>` or `SNAPDIR_STORE` set)
+
+In snapdir mode (git-free) you are the **sole canonical pusher** — this sidesteps
+snapdir's single-writer catalog and any last-writer-wins on the ledger. Use
+`${SNAPDIR_BIN:-snapdir}` and build `SNAPDIR_ARGS` as in `.gatesmith/PM_PROMPT.md`
+("Snapdir mode"). Per round:
+
+1. **Establish the canonical id.** First round: if `--snapdir-id <id>` was given,
+   `snapdir pull . "${SNAPDIR_ARGS[@]}" --id <id>` (bootstrap). Otherwise push the
+   current cwd once: `CANON_ID=$(snapdir push . "${SNAPDIR_ARGS[@]}")`.
+2. **Spawn one worker subagent per eligible owner** (respecting per-owner loop-lock
+   skips). Give each worker `CANON_ID` + the store args, and an **isolated checkout**
+   so concurrent snapshots don't collide:
+   `snapdir pull .gatesmith/work/<owner> "${SNAPDIR_ARGS[@]}" --id "$CANON_ID" --force`.
+   The worker runs PICK→SPAWN→VERIFY (manifest-diff fence inside its checkout) for its
+   scope and **returns a verdict via its handoff — it does NOT push and does NOT write
+   the canonical ledger**. (Simpler default when lanes are disjoint: workers may edit
+   their lane in place and only you push; the isolated checkout is the escape hatch for
+   non-disjoint lanes. `.gatesmith/work/` is snapshot-exempt.)
+3. **Reconcile (sole writer).** Under `.gatesmith/locks/ledger.lock`, apply each
+   verdict to that owner's row(s) via read-modify-write (set `status`, `passed_at`,
+   `snapdir_id: pending`), drain answers, apply supersedes, re-project `state.md`,
+   release.
+4. **Push the new canonical snapshot:** `CANON_ID=$(snapdir push . "${SNAPDIR_ARGS[@]}")`,
+   then a brief second read-modify-write to set `snapdir_id: <CANON_ID>` on the gates
+   passed this round (Phase-2 ordering from PM_PROMPT step 6). Journal `snapdir=<CANON_ID>`.
+5. **Cross-machine:** there is no `git pull`. Coordination is the canonical id you hand
+   out and the snapshots you push. If a shared `SNAPDIR_CATALOG` + shared FS is
+   configured you MAY `snapdir revisions --location <store>` to detect a divergent
+   newest id and escalate; otherwise you are authoritative by construction.
+
 Reserved owner names `__conductor__` and `__all__` must never be used as a real
 owner. (Tip: `/goal` can be made an alias for this command by copying this file to
 `.claude/commands/goal.md`.)

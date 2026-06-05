@@ -17,6 +17,7 @@ PM tick repeatedly until every gate passes.
 - [Claude Code][cc]
 - `git`
 - `jq` (used by the vendored loop's Stop hook)
+- `snapdir` (optional — only for git-free "snapdir mode"; `cargo install snapdir-cli`)
 
 The loop is built in — no external `ralph-loop` plugin needed.
 
@@ -102,6 +103,30 @@ to supersede a gate: it marks the old gate `superseded`, appends your replacemen
 as `pending`, and repoints any dependents to the new id — letting you move on without
 losing the audit trail.
 
+### Snapdir mode (git-free)
+
+For builds where git isn't available or wanted, run with `--snapdir-store
+file:///abs/store` (or set `SNAPDIR_STORE`) to use [snapdir][sd] — BLAKE3
+content-addressed directory snapshots — as the state/sync backend instead of git:
+
+```
+/gatesmith:loop team-a --snapdir-store file:///abs/store
+/gatesmith:conduct     --snapdir-store file:///abs/store
+```
+
+In snapdir mode: the lane fence is a `snapdir manifest` diff (not `git diff`); RECORD
+**pushes a snapshot** and records `snapdir_id` on the gate instead of committing a
+`git_sha`; the ledger travels inside the snapshot, so state syncs without git; and the
+conductor is the sole canonical pusher (cross-machine peers re-sync by pulling the
+canonical id from the shared store). Pass `--snapdir-id <id>` to materialize a prior
+snapshot at session start. Needs the `snapdir` binary (`cargo install snapdir-cli`, or
+set `SNAPDIR_BIN=/abs/path`). A bundled **snapdir skill** (`.claude/skills/snapdir/`)
+also teaches the model to inspect any snapshot id and to checkpoint/revert its own
+state. Note: a snapshot captures the whole working dir — run from a dedicated project
+dir, not `$HOME`.
+
+[sd]: https://snapdir.org
+
 ## How a tick works
 
 Every `/gatesmith` tick runs this contract (full text in `.gatesmith/PM_PROMPT.md`):
@@ -175,12 +200,14 @@ template/                          # copied into your project by install.sh
 │   ├── handoff/                    # teammate handoff files
 │   ├── loops/ locks/               # runtime: loop state + per-owner/ledger locks (gitignored)
 │   ├── questions/ answers/         # runtime: remote-control Q&A handoff (gitignored)
+│   ├── work/                       # runtime: snapdir-mode per-owner checkouts (gitignored)
 │   └── templates/_lane.md          # generic lane template — copy per lane
 └── .claude/
     ├── commands/
     │   ├── gatesmith.md            # the /gatesmith tick command
     │   └── gatesmith/{loop,cancel,conduct}.md   # /gatesmith:loop|cancel|conduct
     ├── gatesmith/                  # vendored loop: stop-hook.sh, setup-loop.sh, cancel-loop.sh, lib.sh
+    ├── skills/snapdir/SKILL.md     # snapdir inspect / checkpoint-revert guide
     └── settings.json               # Stop hook + allowlist (add your build/test commands)
 
 SETUP_PROMPT.md                     # one-shot kick-off prompt to generate your ledger

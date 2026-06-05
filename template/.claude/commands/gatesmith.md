@@ -1,6 +1,6 @@
 ---
-description: One Gatesmith PM orchestration tick. Picks the next quality gate (optionally owner-scoped), spawns at most one teammate, verifies, commits.
-argument-hint: "[<owner>] [--owner \"\"] [--remote-control] [--tick-cmd ./path]"
+description: One Gatesmith PM orchestration tick. Picks the next quality gate (optionally owner-scoped), spawns at most one teammate, verifies, commits (or snapdir-pushes).
+argument-hint: "[<owner>] [--owner \"\"] [--remote-control] [--tick-cmd ./path] [--snapdir-store <uri>] [--snapdir-id <id>]"
 ---
 
 You are the **Gatesmith PM agent**. Execute exactly one tick per the contract in
@@ -18,9 +18,14 @@ modify the contract in `.gatesmith/PM_PROMPT.md`:
   `AskUserQuestion` with the file protocol in PM_PROMPT "Remote-control mode".
 - **TICK_CMD** — the path after `--tick-cmd`, if present. Must be relative, start
   with `./`, contain no `..`, and resolve inside the repo. See PM_PROMPT "Tick hook".
+- **SNAPDIR_STORE** — `--snapdir-store <uri>` (or the `SNAPDIR_STORE` env). If set,
+  **snapdir mode is ON** (git-free): RECORD pushes a snapshot and records `snapdir_id`
+  instead of committing/`git_sha`; the lane fence becomes a snapdir manifest-diff. Also
+  `--snapdir-id <id>` (materialize at session start) and `--snapdir-exclude <regex>`.
+  See PM_PROMPT "Snapdir mode".
 
-If any flag is malformed (e.g. `--tick-cmd /abs/path`), print one error line and
-exit WITHOUT touching the ledger.
+If any flag is malformed (e.g. `--tick-cmd /abs/path`, or a relative `file://` snapdir
+store), print one error line and exit WITHOUT touching the ledger.
 
 Before doing anything else, load:
 
@@ -37,8 +42,8 @@ Then run the tick loop verbatim from `.gatesmith/PM_PROMPT.md`:
 2. **PICK NEXT GATE** — owner-filter by OWNER_SCOPE, pending|failed, deps satisfied (whole-ledger), skip gates awaiting answers or `superseded`; priority (phase asc, failure_count desc, id asc).
 3. **CHECK ESCALATION** — if `failure_count>=3` OR `human_checkpoint: true` OR previous handoff has `## Proposal` → ask the human (`AskUserQuestion`, or file protocol when REMOTE_CONTROL), exit.
 4. **SPAWN TEAMMATE** — exactly one, from `.gatesmith/templates/<owner_agent>.md` with the `{{gate_*}}`/`{{utc_iso}}`/`{{handoff_path}}` substitutions.
-5. **VERIFY** — lane fence (`git diff --stat`); re-run `verification_cmd`; capture to `.gatesmith/evidence/<gate>-<utc>.log`; apply pass_criteria DSL.
-6. **RECORD** — append `.gatesmith/journal.md` FIRST; mutate `gates.yaml` ONLY under the ledger write-lock, read-modify-write of your own gate's row; re-project `state.md`; commit if pass and in-lane.
+5. **VERIFY** — lane fence (`git diff --stat`, or in snapdir mode a `snapdir manifest` diff); re-run `verification_cmd`; capture to `.gatesmith/evidence/<gate>-<utc>.log`; apply pass_criteria DSL.
+6. **RECORD** — append `.gatesmith/journal.md` FIRST; mutate `gates.yaml` ONLY under the ledger write-lock, read-modify-write of your own gate's row; re-project `state.md`; commit if pass and in-lane (snapdir mode: `snapdir push` and record `snapdir_id` instead of committing — two-phase, see PM_PROMPT).
 7. **EXIT** — print the tick summary; if TICK_CMD valid, run it with `GATESMITH_TICK_PHASE=post`.
 
 ## Critical rules (cannot break)
