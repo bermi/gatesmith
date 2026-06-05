@@ -1,0 +1,5 @@
+# Transient orchestration state — never commit. Created lazily at runtime.
+loops/
+locks/
+questions/
+answers/
