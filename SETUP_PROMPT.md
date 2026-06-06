@@ -18,8 +18,11 @@ session at the root of your project, and let it plan.
 > exactly one lane-owner teammate per tick, re-runs the verification itself,
 > enforces a lane fence (`git diff --stat` — teammates may only touch their own
 > lane directory), commits on pass, and journals every verdict. The whole project
-> is controlled through a **ralph loop** from architecture to prototype until
-> production quality is reached.
+> is controlled through Gatesmith's built-in loop (`/gatesmith:loop`) from
+> architecture to prototype until production quality is reached. If the build spans
+> several teams/branches that can progress in parallel, give each gate an `owner`
+> and run one loop per owner (or `/gatesmith:conduct` to drive them all in one
+> session).
 >
 > Use the **Gatesmith** kit that's already installed in this repo:
 > - Fill in the `{{LANES}}`, `{{PLAN_DOC}}`, and `{{FROZEN}}` placeholders in
@@ -27,6 +30,8 @@ session at the root of your project, and let it plan.
 > - Replace the seed gates in `.gatesmith/gates.yaml` with a real, phased,
 >   dependency-ordered ledger covering the whole build (bootstrap → prototype →
 >   hardening → ship). Mark human-judgment gates with `human_checkpoint: true`.
+>   If teams/branches will build in parallel, set an `owner` per gate (cross-owner
+>   `depends_on` is fine — it resolves against the whole ledger).
 > - For each lane, copy `.gatesmith/templates/_lane.md` to `.gatesmith/templates/<lane>.md` and
 >   write that lane's style discipline (idioms, allowed/banned APIs, testing,
 >   reuse expectations).
@@ -37,8 +42,16 @@ session at the root of your project, and let it plan.
 > When the ledger and templates are ready, I'll start the build with:
 >
 > ```
-> /ralph-loop:ralph-loop /gatesmith
+> /gatesmith:loop                 # single-stream
+> # or, for parallel owners:
+> /gatesmith:loop <owner>         # one per owner (separate worktrees/machines)
+> /gatesmith:conduct              # or drive them all from one session
 > ```
+>
+> (Optional — git-free run: add `--snapdir-store file:///abs/store` to use snapdir
+> BLAKE3 snapshots instead of git. The PM then uses a `snapdir manifest` lane fence and
+> records `snapdir_id` instead of `git_sha`; the conductor is the sole snapshot pusher.
+> Requires `cargo install snapdir-cli`.)
 
 ---
 
@@ -95,5 +108,7 @@ including which gates need a human to eyeball the result.
 1. Review the generated `.gatesmith/gates.yaml` — this *is* your project plan. If the
    gates are right, the build will be right.
 2. Make the bootstrap commit (just `.gatesmith/`, `.claude/`, and your build-tool files).
-3. Run `/ralph-loop:ralph-loop /gatesmith` and watch `.gatesmith/journal.md` fill in.
-4. Stop any time with `/ralph-loop:cancel-ralph`; resume by running the loop again.
+3. Run `/gatesmith:loop` (or `/gatesmith:loop <owner>` per team) and watch
+   `.gatesmith/journal.md` fill in.
+4. Stop any time with `/gatesmith:cancel <owner>` (or `_default`); resume by running
+   the loop again.

@@ -10,13 +10,35 @@ schema_version: 1
 #   id               unique, kebab-case
 #   phase            integer; lower phases run first
 #   owner_agent      the lane that owns it; maps to .gatesmith/templates/<owner_agent>.md
+#   owner            OPTIONAL team/branch that owns this gate (e.g. team-payments).
+#                    Distinct from owner_agent (the lane). A `/gatesmith <owner>`
+#                    tick may only PICK and MUTATE gates whose owner == its scope.
+#                    Omit for shared/unowned gates (only the conductor or
+#                    `/gatesmith --owner ""` picks those). depends_on always reads
+#                    the WHOLE ledger, so cross-owner deps work.
 #   depends_on       list of gate ids that must be `passed` before this is pickable
-#   status           pending | failed | passed   (PM mutates this)
+#   status           pending | failed | passed | superseded   (PM mutates this)
 #   failure_count    integer; >=3 escalates to the human
 #   verification_cmd shell command the PM re-runs from the repo root
 #   pass_criteria    the DSL applied to the command's result (see below)
 #   human_checkpoint true → PM stops and asks the human before passing
 #   description       one-line human summary
+#
+# PM-mutated fields (you author the above; the PM appends these as it runs):
+#   passed_at        UTC-ISO when the gate passed
+#   git_sha          commit SHA captured when the gate passed (git mode)
+#   snapdir_id       snapdir snapshot id captured when the gate passed (snapdir mode;
+#                    replaces git_sha). The id is the snapshot taken just before the id
+#                    was written back, so a gate's `status` — not its snapdir_id — is the
+#                    authoritative pass marker for dependency resolution.
+#   failure_reason   reasons appended on each fail
+#   superseded_at    UTC-ISO when a human replaced this gate (status=superseded)
+#   superseded_by    id of the replacement gate
+#   supersede_reason one-line human rationale for the supersede
+#   pending_question uuid of an OPEN human question (remote-control mode only).
+#                    While set, the gate is "awaiting answer": PICK skips it like
+#                    an unmet dep so the loop keeps progressing elsewhere. Cleared
+#                    when .gatesmith/answers/<uuid>.md appears and is applied.
 #
 # pass_criteria DSL (any one, or `and:` a list of them):
 #   exit_code: 0
