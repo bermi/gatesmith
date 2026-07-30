@@ -177,6 +177,68 @@ human_confirm: "question for the human"
 and: [ {exit_code: 0}, {file_exists: foo} ]
 ```
 
+## Sabotage controls — proving a gate can fail
+
+A gate that has never been shown to fail is not evidence. `pass_criteria: exit_code: 0` tells you a
+command succeeded; it tells you nothing about whether that command *could* have failed. An
+instrument that has silently stopped measuring is indistinguishable from a clean result.
+
+So a gate may declare **sabotage controls**: concrete mutations to the real source that must turn it
+red. `/gatesmith:sabotage` runs them.
+
+```sh
+.claude/gatesmith/sabotage.sh --list      # what is declared
+.claude/gatesmith/sabotage.sh             # run them all
+/gatesmith:sabotage --audit               # author the missing ones
+```
+
+Each control is `rsync`ed to a scratch copy, patched, built and run there, then deleted — the
+working tree is never mutated. Four things are asserted, and they are deliberately separate:
+
+1. **The patch landed** — a unique marker counted with `grep -c` in the file the build consumed.
+   Never `diff`: an untracked new file produces no diff at all.
+2. **Something moved** — the gate's own metrics, or its stdout, must differ from the clean run.
+   This is what catches an *arithmetically inert* mutation: `max(1.0, x)` where `x >= 1` applies,
+   builds, counts its marker, and changes nothing. A marker count cannot see that.
+3. **It went red.**
+4. **For the right reason** — the expected predicate must be in `failures(sabotaged)` and **absent
+   from** `failures(clean)`. A gate already red for that reason cannot borrow its own defect as
+   proof of sensitivity.
+
+The statuses are the point. `RED` is the pass; `INERT_MUTATION`, `RED_FOR_THE_WRONG_REASON`,
+`PREDICATE_ALREADY_RED_WHEN_CLEAN`, `SABOTAGE_DID_NOT_APPLY` and `NO_CONTROL_DECLARED` are five
+distinct ways a control can be worthless while looking like one from a distance.
+
+**It works on a ledger that has never heard of any of this.** With no evidence envelope the
+differential falls back to the exit code and records `strength: "exit-code-only"` — weaker, but it
+still catches the biggest failure mode, a gate that cannot fail at all. Gates that emit
+`.gatesmith/evidence/<id>.json` with named `failures[]` get the full check. See
+`.gatesmith/controls/README.md` for the envelope and the control format.
+
+**Start by auditing what you already have.** `/gatesmith:sabotage --audit` walks the gates that
+declare no control and asks the one useful question: can you make this fail on demand? The ones you
+cannot are the real findings.
+
+### Three verdicts, not two
+
+A gate exits `0` (PASS), `1` (FAIL) or `3` (**UNTRACED** — the instrument could not be shown to be
+working). UNTRACED is never counted as a pass and never as a failure: "the instrument was broken"
+and "the subject was fine" are the same reading, and a gate that cannot see must not report a
+colour.
+
+### Rules the discipline depends on
+
+- **Never weaken a threshold to go green.** To change any criterion, first demonstrate that the
+  reference or baseline fails the same predicate, and record that demonstration — with the
+  measurement — in `.gatesmith/CORRECTIONS.md`.
+- **Whoever implements does not verify.** A lane may mutate its gate's `status`, not its
+  `pass_criteria`.
+- **When a control cannot be written as declared, say why in place.** A deleted declaration is an
+  erased hole.
+- **When a control refuses to go red, suspect the instrument before the code.** A gate can be
+  structurally blind to its own subject — integrating a region no part of the defect falls inside,
+  so the most drastic version of that defect leaves every metric identical.
+
 ## The lane fence
 
 Teammates may edit only their own lane directory. Gatesmith enforces this *after
@@ -197,6 +259,8 @@ template/                          # copied into your project by install.sh
 │   ├── journal.md                  # append-only audit log
 │   ├── .gitignore                  # ignores loops/ locks/ questions/ answers/
 │   ├── evidence/                   # captured verification output per tick
+│   │   └── _sabotage/              # per-control results + _matrix.json summary
+│   ├── controls/                   # sabotage controls: one JSON per control
 │   ├── handoff/                    # teammate handoff files
 │   ├── loops/ locks/               # runtime: loop state + per-owner/ledger locks (gitignored)
 │   ├── questions/ answers/         # runtime: remote-control Q&A handoff (gitignored)
@@ -205,8 +269,9 @@ template/                          # copied into your project by install.sh
 └── .claude/
     ├── commands/
     │   ├── gatesmith.md            # the /gatesmith tick command
-    │   └── gatesmith/{loop,cancel,conduct}.md   # /gatesmith:loop|cancel|conduct
+    │   └── gatesmith/{loop,cancel,conduct,sabotage}.md  # /gatesmith:loop|cancel|conduct|sabotage
     ├── gatesmith/                  # vendored loop: stop-hook.sh, setup-loop.sh, cancel-loop.sh, lib.sh
+    │                                 # plus sabotage.sh — the control runner
     ├── skills/snapdir/SKILL.md     # snapdir inspect / checkpoint-revert guide
     └── settings.json               # Stop hook + allowlist (add your build/test commands)
 

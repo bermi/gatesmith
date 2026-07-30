@@ -23,6 +23,11 @@ schema_version: 1
 #   pass_criteria    the DSL applied to the command's result (see below)
 #   human_checkpoint true → PM stops and asks the human before passing
 #   description       one-line human summary
+#   controls         OPTIONAL list of sabotage-control NAMES this gate declares. Each must have a
+#                    matching .gatesmith/controls/<id>/<name>.json, and each must be shown to turn
+#                    this gate red — see /gatesmith:sabotage. A gate that declares none is
+#                    unfalsifiable: it has never been shown it CAN fail, so a green tick from it is
+#                    not evidence. Declared-but-never-executed is a FAILURE, not a skip.
 #
 # PM-mutated fields (you author the above; the PM appends these as it runs):
 #   passed_at        UTC-ISO when the gate passed
@@ -49,7 +54,13 @@ schema_version: 1
 #     op: ">="                      #   one of == != < <= > >=
 #     value: 20
 #   human_confirm: "question to ask the human"
+#   evidence_verdict: PASS          # read .verdict from .gatesmith/evidence/<id>.json
 #   and: [ {exit_code: 0}, {file_exists: foo} ]
+#
+# THREE VERDICTS, NOT TWO. A gate exits 0 (PASS), 1 (FAIL) or 3 (UNTRACED — the instrument could not
+# be shown to be working: no binary, no display, no fixtures, a control that did not land). UNTRACED
+# is never counted as a pass and never as a failure. "The instrument was broken" and "the subject was
+# fine" are the same reading, and a gate that cannot see must not report a colour.
 
 gates:
   - id: repo_skeleton
@@ -99,3 +110,23 @@ gates:
       human_confirm: "Does the built artefact look/behave correctly?"
     human_checkpoint: true
     description: "Human eyeballs the result before the project is declared done."
+
+  # ---- META-GATE: the gates must be shown to be capable of failing -------------------------
+  # Runs the sabotage matrix INSIDE the suite rather than leaving it to be invoked by hand.
+  # Controls rot silently under refactoring: a mutation gets aimed at code a refactor made dead,
+  # and nothing goes red because nothing ran it. A control that only runs when someone remembers
+  # is already stale, so this gate is what runs them.
+  #
+  # It is red if any declared control stayed green, applied but changed nothing, reddened for the
+  # wrong predicate, or was never executed — and if any gate declares no control at all.
+  - id: sabotage_controls_all_red
+    phase: 99
+    owner_agent: qa
+    depends_on: []
+    status: pending
+    failure_count: 0
+    verification_cmd: ".claude/gatesmith/sabotage.sh"
+    pass_criteria:
+      exit_code: 0
+    human_checkpoint: false
+    description: "Every gate declares a sabotage control, and every control turns its gate red for its own named predicate."
