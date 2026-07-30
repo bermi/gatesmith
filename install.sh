@@ -42,6 +42,10 @@ mkdir -p "$DEST/.claude/gatesmith"
 cp "$SRC/.claude/gatesmith/"*.sh "$DEST/.claude/gatesmith/"
 chmod +x "$DEST/.claude/gatesmith/"*.sh
 
+# Sabotage controls: one JSON per control, plus the format doc. The directory existing (even
+# empty) is what makes "this gate declares no control" a visible hole rather than a missing path.
+mkdir -p "$DEST/.gatesmith/controls"
+
 # Bundled skills (snapdir).
 mkdir -p "$DEST/.claude/skills/snapdir"
 cp "$SRC/.claude/skills/snapdir/SKILL.md" "$DEST/.claude/skills/snapdir/SKILL.md"

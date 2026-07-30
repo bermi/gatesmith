@@ -10,7 +10,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 RC=0
 
 echo "== Gatesmith e2e: bash layer =="
-for t in 01_owner_scoping 02_ledger_writelock 03_loop_lifecycle 04_remote_control 05_supersede; do
+for t in 01_owner_scoping 02_ledger_writelock 03_loop_lifecycle 04_remote_control 05_supersede 06_sabotage 07_discipline; do
   echo "--- $t ---"
   bash "$HERE/$t.sh" || RC=1
 done
