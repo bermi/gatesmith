@@ -130,3 +130,37 @@ gates:
       exit_code: 0
     human_checkpoint: false
     description: "Every gate declares a sabotage control, and every control turns its gate red for its own named predicate."
+
+  # ---- META-GATE: a lane may move its gate's STATUS, never its BAR -------------------------
+  # "Never weaken a threshold" is the rule everything else rests on, and in Gatesmith it is
+  # reachable: a `/gatesmith <owner>` tick may mutate the gates it owns. This fences the fields that
+  # define what passing MEANS. The escape hatch is evidence, not permission — an entry in
+  # .gatesmith/CORRECTIONS.md naming the gate, carrying the demonstration that the reference fails
+  # the same predicate.
+  - id: ledger_bar_not_moved
+    phase: 99
+    owner_agent: qa
+    depends_on: []
+    status: pending
+    failure_count: 0
+    verification_cmd: ".claude/gatesmith/ledger-fence.sh"
+    pass_criteria:
+      exit_code: 0
+    human_checkpoint: false
+    description: "No gate's verification_cmd, pass_criteria, thresholds or controls moved without a recorded correction."
+
+  # ---- META-GATE: the suite must pass for someone who is not you ---------------------------
+  # A working-tree run can be green because the tree supplies a file the REPOSITORY does not have.
+  # Nothing about the run is wrong and the result is still not a statement about the repository.
+  # This is NOT the concurrency problem: owning the tree does not help, only tracking does.
+  - id: inputs_are_tracked
+    phase: 99
+    owner_agent: qa
+    depends_on: []
+    status: pending
+    failure_count: 0
+    verification_cmd: ".claude/gatesmith/fresh-checkout.sh"
+    pass_criteria:
+      exit_code: 0
+    human_checkpoint: false
+    description: "Every file the suite runs is tracked, or deliberately ignored — never neither."

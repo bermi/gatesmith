@@ -239,6 +239,37 @@ colour.
   structurally blind to its own subject — integrating a region no part of the defect falls inside,
   so the most drastic version of that defect leaves every metric identical.
 
+### Three fences that make those rules stick
+
+Rules an agent can edit around are suggestions. These are the mechanical halves.
+
+```sh
+.claude/gatesmith/ledger-fence.sh          # a lane may move a gate's STATUS, never its BAR
+.claude/gatesmith/baseline.sh --verify     # the thing a gate compares against is pinned
+.claude/gatesmith/fresh-checkout.sh        # the suite must pass for someone who is not you
+```
+
+**`ledger-fence.sh`** — "never weaken a threshold" is *reachable* in Gatesmith: a `/gatesmith
+<owner>` tick may mutate the gates it owns, so the agent with the strongest incentive to move a bar
+holds the pen. The fence blocks changes to `verification_cmd`, `pass_criteria`, `thresholds` and
+`controls`; `status`, `failure_count` and `failure_reason` stay free, because that is the loop's own
+bookkeeping. The escape hatch is evidence, not a flag: an entry in `CORRECTIONS.md` naming the gate.
+
+**`baseline.sh`** — if the discipline says "demonstrate the reference fails the same predicate",
+then the reference is load-bearing, and a load-bearing input nobody pinned will drift. The digest
+covers the whole declared set, so a file left behind by an older sync changes the baseline's
+identity even if nothing reads it. `--pin` refuses without a reason and appends what moved to
+`CORRECTIONS.md` — re-pinning to make a run go through is the one thing the lock exists to prevent.
+
+**`fresh-checkout.sh`** — a working-tree run can be green because the tree hands it a file the
+repository does not have. The predicate is `git ls-files --others --exclude-standard`:
+untracked *and not ignored*. An ignored input is a decision; one that is neither is an oversight.
+`--run "CMD"` clones HEAD to a temp dir and runs the suite there, which is the only way to catch
+this class at all — it is **not** the concurrency problem, and owning the tree does not help.
+
+The ledger seeds three meta-gates for these: `sabotage_controls_all_red`, `ledger_bar_not_moved`
+and `inputs_are_tracked`.
+
 ## The lane fence
 
 Teammates may edit only their own lane directory. Gatesmith enforces this *after
@@ -261,6 +292,8 @@ template/                          # copied into your project by install.sh
 │   ├── evidence/                   # captured verification output per tick
 │   │   └── _sabotage/              # per-control results + _matrix.json summary
 │   ├── controls/                   # sabotage controls: one JSON per control
+│   ├── CORRECTIONS.md              # every change to what a gate MEANS, with its measurement
+│   ├── baseline.lock.json          # (optional) the pinned reference a gate compares against
 │   ├── handoff/                    # teammate handoff files
 │   ├── loops/ locks/               # runtime: loop state + per-owner/ledger locks (gitignored)
 │   ├── questions/ answers/         # runtime: remote-control Q&A handoff (gitignored)
@@ -271,7 +304,8 @@ template/                          # copied into your project by install.sh
     │   ├── gatesmith.md            # the /gatesmith tick command
     │   └── gatesmith/{loop,cancel,conduct,sabotage}.md  # /gatesmith:loop|cancel|conduct|sabotage
     ├── gatesmith/                  # vendored loop: stop-hook.sh, setup-loop.sh, cancel-loop.sh, lib.sh
-    │                                 # plus sabotage.sh — the control runner
+    │                                 # plus sabotage.sh, ledger-fence.sh, baseline.sh,
+    │                                 # fresh-checkout.sh
     ├── skills/snapdir/SKILL.md     # snapdir inspect / checkpoint-revert guide
     └── settings.json               # Stop hook + allowlist (add your build/test commands)
 
